@@ -4,11 +4,20 @@ sys.path.append('data')
 import tensorflow as tf
 import numpy as np
 import os
+import urllib.request
+import gzip
+import shutil
 
 from matplotlib import pyplot as plt
 from mnist import MNIST
 from tensorflow import keras
 
+def gunzip_shutil(source_filepath, dest_filepath, block_size=65536):
+    with gzip.open(source_filepath, 'rb') as s_file, \
+            open(dest_filepath, 'wb') as d_file:
+        shutil.copyfileobj(s_file, d_file, block_size)
+
+# If there is no folder, create the folder first.
 if not os.path.isdir("data"):
     os.mkdir("data")
 
@@ -17,6 +26,39 @@ if not os.path.isdir("results"):
 
 if not os.path.isdir("saved_models"):
     os.mkdir("saved_models")
+
+train_data_file_path_in = "data/train-images-idx3-ubyte.gz"
+test_data_file_path_in = "data/t10k-images-idx3-ubyte.gz"
+train_label_file_path_in = "data/train-labels-idx1-ubyte.gz"
+test_label_file_path_in = "data/t10k-labels-idx1-ubyte.gz"
+
+train_data_file_path_out = "data/train-images-idx3-ubyte"
+test_data_file_path_out = "data/t10k-images-idx3-ubyte"
+train_label_file_path_out = "data/train-labels-idx1-ubyte"
+test_label_file_path_out = "data/t10k-labels-idx1-ubyte"
+
+# Retrieve the mnist file from mnist file.
+train_data_url = "http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz"
+test_data_url = "http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz"
+train_label_url = "http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz"
+test_label_url = "http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz"
+
+if not os.path.isfile(train_data_file_path_out):
+    urllib.request.urlretrieve(train_data_url, train_data_file_path_in)
+    gunzip_shutil(train_data_file_path_in, train_data_file_path_out)
+
+if not os.path.isfile(test_data_file_path_out):
+    urllib.request.urlretrieve(test_data_url, test_data_file_path_in)
+    gunzip_shutil(test_data_file_path_in, test_data_file_path_out)
+
+if not os.path.isfile(train_label_file_path_out):
+    urllib.request.urlretrieve(train_label_url, train_label_file_path_in)
+    gunzip_shutil(train_label_file_path_in, train_label_file_path_out)
+
+if not os.path.isfile(test_label_file_path_out):
+    urllib.request.urlretrieve(test_label_url, test_label_file_path_in)
+    gunzip_shutil(test_label_file_path_in, test_label_file_path_out)
+
 
 mnist_data = MNIST('data', return_type = 'numpy')
 
@@ -32,31 +74,29 @@ test_images = np.reshape(test_images, (10000, 28, 28, 1))
 # Normalise the images.
 train_images, test_images = train_images / 255, test_images / 255
 
-# Construct convolutional neural network first to enable image categorisation.
+if not os.path.isfile(model_path):
+    # Construct convolutional neural network first to enable image categorisation.
+    model = keras.models.Sequential()
+    model.add(keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
+    model.add(keras.layers.MaxPooling2D((2, 2)))
+    model.add(keras.layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(keras.layers.MaxPooling2D((2, 2)))
+    model.add(keras.layers.Conv2D(64, (3, 3), activation='relu'))
 
+    model.add(keras.layers.Flatten())
+    model.add(keras.layers.Dense(64, activation='relu'))
+    model.add(keras.layers.Dense(10, activation='softmax'))
 
-model = keras.models.Sequential()
+    model.summary()
 
-model.add(keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
-model.add(keras.layers.MaxPooling2D((2, 2)))
-model.add(keras.layers.Conv2D(64, (3, 3), activation='relu'))
-model.add(keras.layers.MaxPooling2D((2, 2)))
-model.add(keras.layers.Conv2D(64, (3, 3), activation='relu'))
+    model.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy'])
 
-model.summary()
+    history = model.fit(train_images, train_labels, epochs=10, 
+                        validation_data=(test_images, test_labels))
 
-model.add(keras.layers.Flatten())
-model.add(keras.layers.Dense(64, activation='relu'))
-model.add(keras.layers.Dense(10, activation='softmax'))
-
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
-
-history = model.fit(train_images, train_labels, epochs=10, 
-                    validation_data=(test_images, test_labels))
-
-model.save(model_path)
+    model.save(model_path)
 
 model = keras.models.load_model(model_path)
 
