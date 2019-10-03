@@ -1,2 +1,3 @@
 tensorflow
 python-mnist
+matplotlib
