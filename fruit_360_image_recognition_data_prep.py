@@ -24,7 +24,6 @@ def create_label_dict(given_list):
 import sys
 import glob
 import gc
-import cv2
 
 import tensorflow as tf
 import numpy as np
@@ -86,6 +85,7 @@ gc.collect()
 
 i_to_s, s_to_i = create_label_dict(train_label)
 
+# Train data creation
 # Write label dictionary to disk
 with open(i_to_s_file_name, "w") as f:
     f.write(json.dumps(i_to_s))
@@ -95,7 +95,7 @@ with open(s_to_i_file_name, "w") as f:
 
 np.save(train_label_file_name, np.array([s_to_i[x] for x in train_label]))
 
-
+# Test data creation
 test_label = []
 test_data = []
 for dir_path in list_of_test_subdir:
