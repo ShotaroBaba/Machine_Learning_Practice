@@ -7,3 +7,5 @@ fruit_data
 results
 data
 .ipynb_checkpoints
+*.csv
+*.zip
